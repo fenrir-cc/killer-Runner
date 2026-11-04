@@ -890,9 +890,9 @@
       this.alpha = 1;
       this.dy = -1.2;
     }
-    update() {
-      this.y += this.dy;
-      this.alpha -= 0.025;
+    update(dtFactor = 1) {
+      this.y += this.dy * dtFactor;
+      this.alpha -= 0.025 * dtFactor;
     }
     draw() {
       ctx.save();
@@ -916,11 +916,11 @@
       this.color = color;
       this.alpha = 1;
     }
-    update() {
-      this.x += this.vx;
-      this.y += this.vy;
-      this.vy += 0.25; // Gravedad
-      this.alpha -= 0.03;
+    update(dtFactor = 1) {
+      this.x += this.vx * dtFactor;
+      this.y += this.vy * dtFactor;
+      this.vy += 0.25 * dtFactor; // Gravedad
+      this.alpha -= 0.03 * dtFactor;
     }
     draw() {
       ctx.save();
@@ -956,9 +956,9 @@
       this.deadDone = false;
     }
 
-    update() {
+    update(dtFactor = 1) {
       if (this.mode === "run") {
-        this.x -= this.speed;
+        this.x -= this.speed * dtFactor;
       }
       this.tick++;
       if (this.tick % 6 === 0) {
@@ -1020,12 +1020,12 @@
       this.tick = 0;
     }
 
-    update() {
+    update(dtFactor = 1) {
       this.tick++;
       if (this.tick % 6 === 0) {
         this.frame = (this.frame + 1) % powerupFrames;
       }
-      this.x -= 2; // Desplaza suavemente hacia la izquierda
+      this.x -= 2 * dtFactor; // Desplaza suavemente hacia la izquierda
     }
 
     draw() {
@@ -1233,9 +1233,9 @@
     canvasTouchActive = false;
   });
 
-  function handleInput() {
+  function handleInput(dtFactor = 1) {
     let moving = false;
-    const speed = powerActive ? car.speed * 1.3 : car.speed;
+    const speed = (powerActive ? car.speed * 1.3 : car.speed) * dtFactor;
 
     if (keys["ArrowUp"] || keys["KeyW"]) {
       car.y -= speed;
@@ -1421,12 +1421,12 @@
   }
 
   // ==========================================
-  // CICLO PRINCIPAL (UPDATE & DRAW)
+  // CICLO PRINCIPAL (UPDATE & DRAW CON DELTA TIME)
   // ==========================================
-  function update(now) {
+  function update(now, dtFactor = 1) {
     if (currentState !== STATE.PLAYING) return;
 
-    handleInput();
+    handleInput(dtFactor);
     updateCar();
 
     // Comprobar PowerUp activo
@@ -1448,7 +1448,7 @@
     // Actualizar zombies
     for (let i = zombies.length - 1; i >= 0; i--) {
       const z = zombies[i];
-      z.update();
+      z.update(dtFactor);
 
       // Zombie cruza la pantalla
       if (z.x + z.w < 0) {
@@ -1491,7 +1491,7 @@
     // Actualizar PowerUps
     for (let i = powerUps.length - 1; i >= 0; i--) {
       const p = powerUps[i];
-      p.update();
+      p.update(dtFactor);
 
       if (p.x + p.w < 0) {
         powerUps.splice(i, 1);
@@ -1511,18 +1511,18 @@
     }
 
     // Actualizar textos y partículas
-    floatTexts.forEach(t => t.update());
+    floatTexts.forEach(t => t.update(dtFactor));
     floatTexts = floatTexts.filter(t => t.alpha > 0);
 
-    particles.forEach(p => p.update());
+    particles.forEach(p => p.update(dtFactor));
     particles = particles.filter(p => p.alpha > 0);
   }
 
-  function draw() {
+  function draw(dtFactor = 1) {
     ctx.clearRect(0, 0, W, H);
 
-    // Fondo continuo (fondo.png)
-    drawBackground(currentState === STATE.PLAYING ? 1 : 0.2);
+    // Fondo continuo sincronizado
+    drawBackground((currentState === STATE.PLAYING ? 1 : 0.2) * dtFactor);
 
     if (currentState === STATE.PLAYING || currentState === STATE.PAUSED || currentState === STATE.GAMEOVER) {
       // Dibujar elementos en el mapa
@@ -1534,9 +1534,18 @@
     }
   }
 
+  let lastFrameTime = performance.now();
+
   function gameLoop(now) {
-    update(now);
-    draw();
+    if (!lastFrameTime) lastFrameTime = now;
+    let dt = (now - lastFrameTime) / 1000;
+    lastFrameTime = now;
+    if (dt > 0.1) dt = 0.1; // Prevenir saltos bruscos
+
+    const dtFactor = dt * 60; // Normalizado a 60 FPS fijos en PC y Móvil
+
+    update(now, dtFactor);
+    draw(dtFactor);
     if (currentState === STATE.PLAYING) {
       animationId = requestAnimationFrame(gameLoop);
     }
@@ -1564,6 +1573,7 @@
 
     lastZombieSpawn = performance.now();
     lastPowerSpawn = performance.now();
+    lastFrameTime = performance.now();
 
     updateHUD();
     hud.style.display = "flex";
@@ -1586,6 +1596,7 @@
       draw();
     } else if (currentState === STATE.PAUSED) {
       currentState = STATE.PLAYING;
+      lastFrameTime = performance.now();
       updateTouchControlsVisibility();
       pauseScreen.style.display = "none";
       animationId = requestAnimationFrame(gameLoop);
