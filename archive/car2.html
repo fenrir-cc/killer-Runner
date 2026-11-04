@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Auto vs Zombies — Juego</title>
+<style>
+html,body{height:100%;margin:0;background:#111;font-family:Arial,Helvetica,sans-serif}
+#wrap{display:none;flex-direction:column;align-items:center;gap:12px;padding:12px}
+canvas{background:#111;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.6);max-width:100%;height:auto}
+.hud{color:#eee;display:flex;gap:12px;align-items:center}
+.btn{background:#fff2;border-radius:8px;padding:8px 12px;border:none;cursor:pointer}
+#menu {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;  /* igual que tu canvas */
+  height: 480px; /* igual que tu canvas */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+#menu img.bg {
+  position: absolute;
+  top: 50;
+  left: 50;
+  width: 50%;
+  height: 150%;
+  object-fit: cover;
+  z-index: -1; /* para que quede detrás del título y botón */
+}
+
+#menu .btnStart {
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-top: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+#highscoresMenu{
+  margin-top:20px;color:white;background:rgba(0,0,0,.5);padding:10px;border-radius:8px;
+}
+
+#menu h1 {
+  position: relative;
+  z-index: 1;
+}
+</style>
+</head>
+<body>
+<!-- MENÚ DE INICIO -->
+<div id="menu">
+  <!-- Fondo que ocupa el mismo tamaño que el canvas -->
+  <img src="https://raw.githubusercontent.com/fenrir-cc/movies/main/menu-fondo.jpg" class="bg" />
+
+  <!-- Título -->
+  <h1 style="color:white;z-index:1;position:relative;"></h1>
+
+  <!-- Botón de inicio -->
+  <button id="startBtn" class="btnStart">
+    <img src="https://raw.githubusercontent.com/fenrir-cc/movies/main/start-button.png" alt="Play" style="width:128px;height:auto;">
+  </button>
+
+  <!-- Puntuaciones -->
+  <div id="highscoresMenu"></div>
+
+  
+
+</div>
+
+
+
+<!-- JUEGO -->
+<div id="wrap">
+  <h2 style="color:white;margin:0">Auto vs Zombies</h2>
+  <canvas id="game" width="900" height="480"></canvas>
+  <div class="hud">
+    <div>Score: <strong id="score">0</strong></div>
+    <div>Vidas: <strong id="lives">3</strong></div>
+    <div style="margin-left:12px"><button id="restart" class="btn">Reiniciar</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
+const livesEl = document.getElementById("lives");
+const restartBtn = document.getElementById("restart");
+const startBtn = document.getElementById("startBtn");
+const highscoresMenu = document.getElementById("highscoresMenu");
+
+const W = canvas.width;
+const H = canvas.height;
+let animationId;
+
+// --- Fondo ---
+const bgImg = new Image();
+bgImg.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/fondo2.png";
+let bgX = 0;
+const bgSpeed = 2;
+function drawBackground(){
+    if(!bgImg.complete) return;
+    ctx.drawImage(bgImg, bgX, 0, W, H);
+    ctx.drawImage(bgImg, bgX + W, 0, W, H);
+    bgX -= bgSpeed;
+    if(bgX <= -W) bgX = 0;
+}
+
+// --- Vidas ---
+const lifeImg = new Image();
+lifeImg.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/spoiler.png";
+
+// --- Overlay PowerUp ---
+const overlaySprite = new Image();
+overlaySprite.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/aura2.png";
+const overlayFrames = 17;
+let overlayFW=0, overlayFH=0;
+overlaySprite.onload = () => {
+    overlayFW = overlaySprite.width / overlayFrames;
+    overlayFH = overlaySprite.height;
+};
+let overlayFrame=0, overlayTick=0;
+
+// --- Carro ---
+const carSprites = { ride:new Image(), damage:new Image(), destroyed:new Image() };
+carSprites.ride.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/carro-spoiler.png";
+carSprites.damage.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/carro-spoiler-choque.png";
+carSprites.destroyed.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/Destroyed.png";
+const carFrames = { ride:8, damage:5, destroyed:10 };
+const carFrameWidth = {}, carFrameHeight = {};
+Object.keys(carSprites).forEach(mode => {
+    carSprites[mode].onload = () => {
+        carFrameWidth[mode] = carSprites[mode].width / carFrames[mode];
+        carFrameHeight[mode] = carSprites[mode].height;
+    };
+});
+let car = { x:80, y:H/2-64, w:128, h:100, mode:"ride", frame:0, tick:0 };
+let lives = 3;
+let score = 0;
+
+//sonidos
+
+const startSound = new Audio("https://raw.githubusercontent.com/fenrir-cc/movies/main/o.ogg");
+startSound.volume = 1.0;
+
+const zombieDieSound = new Audio("https://raw.githubusercontent.com/fenrir-cc/movies/main/grito.mp3");
+zombieDieSound.volume = 0.2;
+const lifeLostSound = new Audio("https://raw.githubusercontent.com/fenrir-cc/movies/main/poto.ogg");
+const powerUpSound = new Audio("https://raw.githubusercontent.com/fenrir-cc/movies/main/powerup.mp3");
+powerUpSound.volume = 0.5;
+lifeLostSound.volume = 1.0;
+
+const gameOverSound = new Audio("https://raw.githubusercontent.com/fenrir-cc/movies/main/poto.ogg");
+gameOverSound.volume = 0.5;
+
+
+
+const menuMusic = new Audio("https://raw.githubusercontent.com/fenrir-cc/movies/main/openig.mp3");
+menuMusic.loop = true;  // se repite
+menuMusic.volume = 0.3; // ajusta volumen
+
+
+
+
+
+
+
+const crashSound = new Audio("https://raw.githubusercontent.com/fenrir-cc/movies/main/car-crash.mp3");
+const driveSound = new Audio("https://raw.githubusercontent.com/fenrir-cc/movies/main/car-drive.mp3");
+
+driveSound.loop = true;
+
+// --- Zombies ---
+const zombieSprites = { run:new Image(), dead:new Image() };
+zombieSprites.run.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/run2.png";
+zombieSprites.dead.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/dead2.png";
+const zombieFrames = { run:7, dead:5 };
+const zombieFrameWidth = {}, zombieFrameHeight = {};
+Object.keys(zombieSprites).forEach(mode => {
+    zombieSprites[mode].onload = () => {
+        zombieFrameWidth[mode] = zombieSprites[mode].width / zombieFrames[mode];
+        zombieFrameHeight[mode] = zombieSprites[mode].height;
+    };
+});
+
+class Zombie {
+    constructor(x,y){
+        this.x=x; this.y=y; this.w=60; this.h=80;
+        this.speed =5 + Math.random()*5;
+        this.mode="run"; this.frame=0; this.tick=0; this.deadDone=false;
+    }
+    update(){
+        if(this.mode==="run") this.x -= this.speed;
+        this.tick++;
+        if(this.tick % 6 === 0){
+            this.frame++;
+            if(this.frame >= zombieFrames[this.mode]){
+                if(this.mode==="dead"){ this.frame = zombieFrames.dead-1; this.deadDone=true; }
+                else this.frame = 0;
+            }
+        }
+    }
+    draw(){
+        const img = zombieSprites[this.mode];
+        if(!img.complete) return;
+        const fw = zombieFrameWidth[this.mode];
+        const fh = zombieFrameHeight[this.mode];
+        ctx.drawImage(img,this.frame*fw,0,fw,fh,this.x,this.y,this.w,this.h);
+    }
+    kill(){ this.mode="dead"; this.frame=0; this.tick=0; }
+}
+let zombies=[];
+
+// --- PowerUps ---
+const powerSprite = new Image();
+powerSprite.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/powerup.png";
+const powerFrames = 4; 
+let powerFrameWidth=0, powerFrameHeight=0;
+powerSprite.onload = () => {
+    powerFrameWidth = powerSprite.width / powerFrames;
+    powerFrameHeight = powerSprite.height;
+};
+class PowerUp{
+    constructor(x,y){
+        this.x=x; this.y=y; this.w=40; this.h=40; 
+        this.active=true; this.frame=0; this.tick=0;
+    }
+    update(){
+        if(!this.active) return;
+        this.tick++;
+        if(this.tick % 8 === 0){
+            this.frame=(this.frame+1)%powerFrames;
+        }
+    }
+    draw(){
+        if(!powerSprite.complete || !this.active) return;
+        ctx.drawImage(
+            powerSprite,
+            this.frame*powerFrameWidth,0,powerFrameWidth,powerFrameHeight,
+            this.x,this.y,this.w,this.h
+        );
+    }
+}
+let powerUps=[];
+let powerActive=false;
+let powerTimer=0;
+
+// --- Puntos flotantes ---
+let floatTexts=[];
+class FloatText{
+    constructor(x,y,text,color="yellow"){
+        this.x=x;this.y=y;this.text=text;this.color=color;
+        this.alpha=1;this.dy=-1;
+    }
+    update(){ this.y+=this.dy; this.alpha-=0.02; }
+    draw(){
+        ctx.globalAlpha=this.alpha;
+        ctx.fillStyle=this.color;
+        ctx.font="20px Arial";
+        ctx.fillText(this.text,this.x,this.y);
+        ctx.globalAlpha=1;
+    }
+}
+
+// --- Spawn ---
+const baseZombieSpawnInterval = 2000; 
+let zombieSpawnInterval = baseZombieSpawnInterval;
+let lastZombieSpawn=0;
+function spawnZombie(){
+    for(let i=0;i<3;i++){
+        const y=Math.random()*(H*0.7-100)+H*0.3;
+        zombies.push(new Zombie(W+i*60,y));
+    }
+}
+function spawnPowerUp(){
+    const y=Math.random()*(H*0.4-100)+H*0.6;
+    powerUps.push(new PowerUp(Math.random()*(W-100)+100,y));
+}
+setInterval(spawnPowerUp,10000);
+
+// --- Controles ---
+const keys={};
+window.addEventListener("keydown",e=>keys[e.key]=true);
+window.addEventListener("keyup",e=>keys[e.key]=false);
+
+function updateCarFrame(){
+    car.tick++;
+    if(car.tick % 6 === 0){
+        car.frame++;
+        if(car.frame >= carFrames[car.mode]){
+            if(car.mode==="damage"){ car.mode="ride"; car.frame=0; car.tick=0; }
+            else if(car.mode==="destroyed"){ car.frame=carFrames.destroyed-1; }
+            else { car.frame=0; }
+        }
+    }
+}
+function drawCar(){
+    const img = carSprites[car.mode];
+    if(!img.complete) return;
+    const fw = carFrameWidth[car.mode];
+    const fh = carFrameHeight[car.mode];
+    ctx.drawImage(img, car.frame*fw, 0, fw, fh, car.x, car.y, car.w, car.h);
+    if(powerActive && overlaySprite.complete){
+        overlayTick++;
+        if(overlayTick % 6 === 0){
+            overlayFrame=(overlayFrame+1)%overlayFrames;
+        }
+        ctx.drawImage(
+            overlaySprite,
+            overlayFrame*overlayFW, 0, overlayFW, overlayFH,
+            car.x, car.y-20, car.w, 200
+        );
+    }
+}
+function drawLives(){
+    if(!lifeImg.complete) return;
+    const size = 32; 
+    for(let i=0; i<lives; i++){
+        ctx.drawImage(lifeImg, 10 + i*(size+5), 10, size, size);
+    }
+}
+
+// --- Colisiones ---
+function rectsOverlap(a,b){
+    return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+    );
+}
+
+// --- Score localstorage ---
+let highScores=[];
+function loadHighScores(){
+    let stored = localStorage.getItem("highScores");
+    if(stored) highScores = JSON.parse(stored);
+    else highScores=[];
+}
+function showHighScoresMenu(){
+    highscoresMenu.innerHTML = "<h3>TOP 10</h3>";
+    highScores.forEach((entry,index)=>{
+        highscoresMenu.innerHTML += `<div>${index+1}. ${entry.name} - ${entry.score}</div>`;
+    });
+}
+
+// --- Game Over ---
+function drawGameOver(){
+
+
+    // Cargar los puntajes guardados
+    let stored = localStorage.getItem("highScores");
+    let highScores = stored ? JSON.parse(stored) : [];
+    
+      // Detener otros sonidos
+    driveSound.pause();
+    driveSound.currentTime = 0;
+    powerUpSound.pause();
+    powerUpSound.currentTime = 0;
+    crashSound.pause();
+    crashSound.currentTime = 0;
+
+    // Reproducir sonido de Game Over
+    gameOverSound.currentTime = 0;
+    gameOverSound.play();
+
+
+    // Dibujar fondo de Game Over
+    ctx.fillStyle="rgba(0,0,0,0.8)";
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle="white";
+    ctx.font="20px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("GAME OVER",W/2,H/3);
+
+    // Pedir nombre al jugador
+    let playerName = prompt("¡Terminaste! Ingresa tu nombre:","Jugador");
+    if(!playerName) playerName="Jugador";
+
+    // Agregar el nuevo puntaje y ordenar
+    highScores.push({name:playerName, score:score});
+    highScores.sort((a,b)=>b.score - a.score);
+    if(highScores.length>10) highScores = highScores.slice(0,10);
+
+    // Guardar en localStorage
+    localStorage.setItem("highScores", JSON.stringify(highScores));
+
+    // Mostrar puntajes en consola o dentro del canvas
+    ctx.font="24px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("TOP 10:", W/2, H/2);
+    highScores.forEach((entry, index) => {
+        ctx.fillText(`${index+1}. ${entry.name} - ${entry.score}`, W/2, H/2 + 30 + index*30);
+    });
+}
+
+
+// --- Update ---
+function update(timestamp){
+    if(keys["ArrowUp"]) car.y -=4;
+    if(keys["ArrowDown"]) car.y +=4;
+    if(keys["ArrowLeft"]) car.x -=4;
+    if(keys["ArrowRight"]) car.x +=4;
+    car.y = Math.max(H*0.3, Math.min(H-car.h, car.y));
+    car.x = Math.max(0, Math.min(W-car.w, car.x));
+
+    if(timestamp - lastZombieSpawn > zombieSpawnInterval){
+        spawnZombie();
+        lastZombieSpawn = timestamp;
+    }
+
+    for(let i=zombies.length-1;i>=0;i--){
+        const z=zombies[i];
+        z.update();
+        if(z.x+z.w<0){
+            if(z.mode==="run") lives--;
+            lifeLostSound.currentTime = 0; // reinicia el audio
+            lifeLostSound.play();         // reproduce sonido
+            zombies.splice(i,1); continue;
+        }
+        if(rectsOverlap(car,z) && z.mode==="run"){
+            z.kill();
+            const soundClone = zombieDieSound.cloneNode();
+            soundClone.play();
+            const points = powerActive?30:10;
+            score += points;
+            floatTexts.push(new FloatText(z.x,z.y,`+${points}`,"yellow"));
+            car.mode="damage"; car.frame=0; car.tick=0;
+
+            crashSound.currentTime = 0; // reinicia el sonido si se presiona varias veces
+            crashSound.play();
+        }
+        if(z.deadDone) zombies.splice(i,1);
+    }
+
+    for(let i=powerUps.length-1;i>=0;i--){
+        const p=powerUps[i]; p.update();
+        if(p.active && rectsOverlap(car,p)){
+            p.active=false; powerActive=true; powerTimer=Date.now();
+            zombieSpawnInterval=1000;
+
+            powerUpSound.currentTime = 0;  // Reinicia el sonido
+        powerUpSound.play();           // Reproduce el sonido
+            powerUps.splice(i,1);
+        }
+    }
+
+    if(powerActive && Date.now()-powerTimer>5000){
+        powerActive=false;
+        zombieSpawnInterval=baseZombieSpawnInterval;
+    }
+
+
+
+    // --- Sonido de movimiento ---
+let moving = false;
+if(keys["ArrowUp"] || keys["ArrowDown"] || keys["ArrowLeft"] || keys["ArrowRight"]){
+    moving = true;
+}
+
+if(moving){
+    if(driveSound.paused) driveSound.play(); // inicia loop si está pausado
+} else {
+    driveSound.pause();
+    driveSound.currentTime = 0; // resetea para que empiece desde el inicio
+}
+
+
+    floatTexts.forEach(t=>t.update());
+    floatTexts=floatTexts.filter(t=>t.alpha>0);
+
+    updateCarFrame();
+    scoreEl.textContent = score;
+    livesEl.textContent = lives;
+}
+
+// --- Draw ---
+
+
+
+
+function draw(){
+    ctx.clearRect(0,0,W,H);
+    drawBackground();
+    zombies.forEach(z=>z.draw());
+    powerUps.forEach(p=>p.draw());
+    drawCar();
+    drawLives();
+    floatTexts.forEach(t=>t.draw());
+}
+
+// --- Loop ---
+function loop(timestamp){
+    update(timestamp||0);
+    draw();
+    if(lives>0){
+        animationId=requestAnimationFrame(loop);
+    } else {
+        // detener sonido del carro
+    driveSound.pause();
+    driveSound.currentTime = 0
+        drawGameOver();
+    }
+}
+
+// --- Reset ---
+function resetGame(){
+    if(animationId) cancelAnimationFrame(animationId);
+    zombies=[]; powerUps=[]; floatTexts=[];
+    car={x:80,y:H/2-64,w:128,h:90,mode:"ride",frame:0,tick:0};
+    lives=3; score=0; bgX=0;
+    powerActive=false; zombieSpawnInterval=baseZombieSpawnInterval; lastZombieSpawn=0;
+    overlayFrame=0; overlayTick=0;
+    loop();
+}
+
+// --- Inicio ---
+function startGame(){
+    document.getElementById("menu").style.display="none";
+    document.getElementById("wrap").style.display="flex";
+    resetGame();
+}
+
+restartBtn.addEventListener("click", resetGame);
+startBtn.addEventListener("click", () => {
+    startSound.currentTime = 0;
+    startSound.play();
+    startGame();
+});
+
+
+loadHighScores();
+showHighScoresMenu();
+})();
+</script>
+</body>
+</html>

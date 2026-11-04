@@ -1,0 +1,10 @@
+# PSD source files
+*.psd
+background/PSD/
+
+# Zip backups
+*.zip
+
+# OS files
+Thumbs.db
+.DS_Store

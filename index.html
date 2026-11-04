@@ -1,0 +1,1337 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Killer Runner — Auto vs Zombies</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Press+Start+2P&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #e63946;
+      --accent: #ffd166;
+      --bg-dark: #0d0f12;
+      --panel-bg: rgba(18, 22, 28, 0.92);
+      --border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg-dark);
+      color: #f1faee;
+      font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 960px;
+      height: 540px;
+      max-width: 100vw;
+      max-height: 100vh;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(230, 57, 70, 0.25);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* HUD Superior */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 12px 20px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+    }
+
+    .hud-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      pointer-events: auto;
+    }
+
+    .hud-badge {
+      background: rgba(0, 0, 0, 0.65);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .lives-icons {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .lives-icons img {
+      width: 24px;
+      height: 24px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    }
+
+    .power-bar-wrap {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 209, 102, 0.2);
+      border: 1px solid var(--accent);
+      padding: 5px 12px;
+      border-radius: 8px;
+      color: var(--accent);
+      font-weight: 700;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { box-shadow: 0 0 5px rgba(255, 209, 102, 0.4); }
+      to { box-shadow: 0 0 15px rgba(255, 209, 102, 0.8); }
+    }
+
+    .hud-btn {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid var(--border-color);
+      color: white;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+
+    .hud-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    /* PANTALLAS (Menú, Pausa, Game Over) */
+    .screen-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 12, 16, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+      padding: 24px;
+      text-align: center;
+    }
+
+    #menuScreen {
+      background: url('assets/ui/menu-fondo.jpg') center/cover no-repeat;
+    }
+
+    #menuScreen::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(10,12,16,0.6) 0%, rgba(10,12,16,0.92) 100%);
+      z-index: 0;
+    }
+
+    .menu-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      max-width: 600px;
+      width: 100%;
+    }
+
+    h1.game-title {
+      font-family: 'Creepster', cursive;
+      font-size: 4rem;
+      letter-spacing: 3px;
+      margin: 0;
+      color: #ff3344;
+      text-shadow: 0 0 20px rgba(255, 51, 68, 0.7), 2px 2px 0px #000;
+      animation: titleFloat 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes titleFloat {
+      from { transform: translateY(0px) scale(1); }
+      to { transform: translateY(-6px) scale(1.02); }
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      color: #cbd5e1;
+      margin-top: -10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #e63946 0%, #d62828 100%);
+      color: white;
+      border: none;
+      padding: 14px 42px;
+      font-size: 1.4rem;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: 2px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(230, 57, 70, 0.5);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 6px 20px rgba(230, 57, 70, 0.8);
+      background: linear-gradient(135deg, #f04e5b 0%, #e63946 100%);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 1px solid var(--border-color);
+      padding: 10px 24px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .instructions-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      color: #94a3b8;
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .instructions-card span {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Modal Top 10 */
+    .scores-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px 20px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .scores-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 1.1rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .scores-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 0.95rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .scores-list li {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .scores-list li:nth-child(1) { color: #ffd700; font-weight: 700; }
+    .scores-list li:nth-child(2) { color: #c0c0c0; }
+    .scores-list li:nth-child(3) { color: #cd7f32; }
+
+    /* Modal Game Over */
+    #gameOverScreen {
+      display: none;
+    }
+
+    .game-over-box {
+      background: var(--panel-bg);
+      border: 2px solid var(--primary);
+      border-radius: 14px;
+      padding: 24px 32px;
+      width: 90%;
+      max-width: 460px;
+      box-shadow: 0 10px 30px rgba(230, 57, 70, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .final-score-title {
+      font-size: 1.3rem;
+      color: #94a3b8;
+      margin: 0;
+    }
+
+    .final-score-val {
+      font-size: 2.8rem;
+      color: var(--accent);
+      font-weight: 700;
+      margin: 0;
+      line-height: 1;
+    }
+
+    .name-input-group {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .name-input-group input {
+      flex: 1;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: white;
+      font-size: 1.1rem;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .name-input-group input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Modal Pausa */
+    #pauseScreen {
+      display: none;
+    }
+
+    /* Controles de sonido */
+    .audio-toggle {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      z-index: 30;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <!-- HUD SUPERIOR DURANTE EL JUEGO -->
+  <div id="hud">
+    <div class="hud-group">
+      <div class="hud-badge">
+        <span>SCORE:</span>
+        <span id="scoreVal" style="color:var(--accent);">0</span>
+      </div>
+      <div class="hud-badge">
+        <span>VIDAS:</span>
+        <div class="lives-icons" id="livesContainer"></div>
+      </div>
+      <div class="power-bar-wrap" id="powerIndicator">
+        <span>⚡ FRENESÍ (x3)</span>
+      </div>
+    </div>
+    <div class="hud-group">
+      <button class="hud-btn" id="pauseBtn">⏸ Pausa (P)</button>
+    </div>
+  </div>
+
+  <!-- CANVAS DEL JUEGO -->
+  <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+  <!-- PANTALLA: MENÚ PRINCIPAL -->
+  <div id="menuScreen" class="screen-overlay">
+    <div class="menu-content">
+      <h1 class="game-title">KILLER RUNNER</h1>
+      <div class="subtitle">Auto vs Zombies Apocalypse</div>
+      
+      <button id="startBtn" class="btn-primary">
+        <span>INICIAR JUEGO</span> ▶
+      </button>
+
+      <div class="instructions-card">
+        <div><span>Flechas / WASD:</span> Conducir</div>
+        <div><span>Atropellar:</span> Zombies</div>
+        <div><span>Evitar:</span> Dejarlos escapar</div>
+      </div>
+
+      <div class="scores-card">
+        <h3>🏆 Mejores Puntuaciones</h3>
+        <ul id="menuHighScores" class="scores-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANTALLA: PAUSA -->
+  <div id="pauseScreen" class="screen-overlay">
+    <div class="menu-content">
+      <h1 class="game-title" style="font-size:3rem;color:var(--accent);">JUEGO EN PAUSA</h1>
+      <button id="resumeBtn" class="btn-primary">REANUDAR</button>
+      <button id="quitBtn" class="btn-secondary">SALIR AL MENÚ</button>
+    </div>
+  </div>
+
+  <!-- PANTALLA: GAME OVER (SIN PROMPT) -->
+  <div id="gameOverScreen" class="screen-overlay">
+    <div class="game-over-box">
+      <h2 style="color:var(--primary);margin:0;font-size:2.2rem;letter-spacing:2px;">¡JUEGO TERMINADO!</h2>
+      <p class="final-score-title">Puntuación Final</p>
+      <p class="final-score-val" id="finalScoreVal">0</p>
+
+      <div id="saveScoreForm" style="width:100%;display:flex;flex-direction:column;gap:10px;">
+        <div class="name-input-group">
+          <input type="text" id="playerNameInput" placeholder="Ingresa tu nombre..." maxlength="15" />
+          <button id="saveScoreBtn" class="btn-secondary" style="background:var(--accent);color:#111;font-weight:700;">Guardar</button>
+        </div>
+      </div>
+
+      <div class="scores-card" style="max-height:160px;">
+        <h3>Top 10 Récords</h3>
+        <ul id="gameOverHighScores" class="scores-list"></ul>
+      </div>
+
+      <div style="display:flex;gap:12px;width:100%;justify-content:center;">
+        <button id="restartBtn" class="btn-primary" style="padding:10px 24px;font-size:1.1rem;">Reintentar</button>
+        <button id="menuFromGameOverBtn" class="btn-secondary">Menú</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTÓN MUTE SONIDO -->
+  <button class="audio-toggle" id="audioToggleBtn">🔊 Audio: ON</button>
+</div>
+
+<script>
+(() => {
+  // ==========================================
+  // CONFIGURACIÓN Y CONSTANTES
+  // ==========================================
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // Elementos DOM
+  const hud = document.getElementById("hud");
+  const scoreVal = document.getElementById("scoreVal");
+  const livesContainer = document.getElementById("livesContainer");
+  const powerIndicator = document.getElementById("powerIndicator");
+  const menuScreen = document.getElementById("menuScreen");
+  const pauseScreen = document.getElementById("pauseScreen");
+  const gameOverScreen = document.getElementById("gameOverScreen");
+  const startBtn = document.getElementById("startBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const resumeBtn = document.getElementById("resumeBtn");
+  const quitBtn = document.getElementById("quitBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const menuFromGameOverBtn = document.getElementById("menuFromGameOverBtn");
+  const saveScoreBtn = document.getElementById("saveScoreBtn");
+  const playerNameInput = document.getElementById("playerNameInput");
+  const finalScoreVal = document.getElementById("finalScoreVal");
+  const menuHighScores = document.getElementById("menuHighScores");
+  const gameOverHighScores = document.getElementById("gameOverHighScores");
+  const audioToggleBtn = document.getElementById("audioToggleBtn");
+  const saveScoreForm = document.getElementById("saveScoreForm");
+
+  // ==========================================
+  // GESTOR DE AUDIO CON RUTAS LOCALES
+  // ==========================================
+  class SoundManager {
+    constructor() {
+      this.muted = false;
+      this.sounds = {
+        start: new Audio("assets/audio/start.ogg"),
+        zombieDie: new Audio("assets/audio/zombie_die.mp3"),
+        lifeLost: new Audio("assets/audio/life_lost.ogg"),
+        powerup: new Audio("assets/audio/powerup.mp3"),
+        gameOver: new Audio("assets/audio/game_over.ogg"),
+        carCrash: new Audio("assets/audio/car_crash.mp3"),
+        drive: new Audio("assets/audio/car_drive.mp3"),
+        menuMusic: new Audio("assets/audio/menu_music.mp3")
+      };
+
+      // Volúmenes calibrados
+      this.sounds.drive.loop = true;
+      this.sounds.drive.volume = 0.35;
+      this.sounds.menuMusic.loop = true;
+      this.sounds.menuMusic.volume = 0.25;
+      this.sounds.zombieDie.volume = 0.35;
+      this.sounds.carCrash.volume = 0.4;
+      this.sounds.powerup.volume = 0.5;
+      this.sounds.lifeLost.volume = 0.6;
+      this.sounds.gameOver.volume = 0.5;
+    }
+
+    toggleMute() {
+      this.muted = !this.muted;
+      Object.values(this.sounds).forEach(audio => {
+        audio.muted = this.muted;
+      });
+      return !this.muted;
+    }
+
+    play(name) {
+      if (this.muted) return;
+      const audio = this.sounds[name];
+      if (!audio) return;
+      try {
+        if (name === "zombieDie" || name === "carCrash") {
+          const clone = audio.cloneNode();
+          clone.volume = audio.volume;
+          clone.muted = this.muted;
+          clone.play().catch(() => {});
+        } else {
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+        }
+      } catch (e) {}
+    }
+
+    startDrive() {
+      if (this.muted) return;
+      if (this.sounds.drive.paused) {
+        this.sounds.drive.play().catch(() => {});
+      }
+    }
+
+    stopDrive() {
+      this.sounds.drive.pause();
+      this.sounds.drive.currentTime = 0;
+    }
+
+    startMenuMusic() {
+      if (this.muted) return;
+      this.sounds.menuMusic.play().catch(() => {});
+    }
+
+    stopMenuMusic() {
+      this.sounds.menuMusic.pause();
+      this.sounds.menuMusic.currentTime = 0;
+    }
+
+    stopAll() {
+      this.stopDrive();
+      this.stopMenuMusic();
+    }
+  }
+  const audio = new SoundManager();
+
+  // ==========================================
+  // CARGA DE SPRITES Y ASSETS LOCALES
+  // ==========================================
+  function loadImage(src) {
+    const img = new Image();
+    img.src = src;
+    return img;
+  }
+
+  // Parallax layers
+  const bgLayers = [
+    { img: loadImage("background/PNG/War1/Bright/sky.png"), speed: 0.3, x: 0 },
+    { img: loadImage("background/PNG/War1/Bright/ruins.png"), speed: 0.8, x: 0 },
+    { img: loadImage("background/PNG/War1/Bright/houses1.png"), speed: 1.6, x: 0 },
+    { img: loadImage("background/PNG/War1/Bright/road.png"), speed: 4.0, x: 0 }
+  ];
+  const fallbackBg = loadImage("fondo.png");
+
+  // Carro
+  const carImages = {
+    ride: loadImage("assets/ui/carro-spoiler.png"),
+    damage: loadImage("assets/ui/carro-spoiler-choque.png"),
+    destroyed: loadImage("Jeep_2/Destroyed.png")
+  };
+  const carFrames = { ride: 8, damage: 5, destroyed: 10 };
+
+  // Aura PowerUp
+  const auraImg = loadImage("assets/ui/aura2.png");
+  const auraFrames = 17;
+
+  // PowerUp Item
+  const powerupImg = loadImage("assets/ui/powerup.png");
+  const powerupFrames = 4;
+
+  // Tipos de Zombies con Sprite Sheets Locales
+  const zombieTypes = [
+    {
+      name: "Zombie Man",
+      runImg: loadImage("Zombie Man/Run.png"),
+      deadImg: loadImage("Zombie Man/Dead.png"),
+      runFrames: 7,
+      deadFrames: 5,
+      frameWidth: 96,
+      frameHeight: 96,
+      w: 60,
+      h: 80,
+      baseSpeed: 4.5,
+      points: 10
+    },
+    {
+      name: "Zombie Woman",
+      runImg: loadImage("Zombie Woman/Run.png"),
+      deadImg: loadImage("Zombie Woman/Dead.png"),
+      runFrames: 7,
+      deadFrames: 5,
+      frameWidth: 96,
+      frameHeight: 96,
+      w: 55,
+      h: 80,
+      baseSpeed: 6.0,
+      points: 15
+    },
+    {
+      name: "Wild Zombie",
+      runImg: loadImage("Wild Zombie/Run.png"),
+      deadImg: loadImage("Wild Zombie/Dead.png"),
+      runFrames: 8,
+      deadFrames: 5,
+      frameWidth: 96,
+      frameHeight: 96,
+      w: 65,
+      h: 80,
+      baseSpeed: 7.5,
+      points: 25
+    }
+  ];
+
+  // ==========================================
+  // ESTADO DEL JUEGO
+  // ==========================================
+  const STATE = { MENU: 0, PLAYING: 1, PAUSED: 2, GAMEOVER: 3 };
+  let currentState = STATE.MENU;
+
+  let score = 0;
+  let lives = 3;
+  let animationId = null;
+  let lastTimestamp = 0;
+
+  // PowerUp status
+  let powerActive = false;
+  let powerEndTime = 0;
+  const POWER_DURATION = 6000;
+
+  // Timers de spawn integrados
+  let lastZombieSpawn = 0;
+  let zombieSpawnInterval = 1800;
+  let lastPowerSpawn = 0;
+  const powerSpawnInterval = 12000;
+
+  // Carro
+  const car = {
+    x: 80,
+    y: H * 0.6,
+    w: 140,
+    h: 80,
+    speed: 5,
+    mode: "ride",
+    frame: 0,
+    tick: 0,
+    auraFrame: 0,
+    auraTick: 0
+  };
+
+  // Entidades
+  let zombies = [];
+  let powerUps = [];
+  let floatTexts = [];
+  let particles = [];
+
+  // ==========================================
+  // TEXTO FLOTANTE Y PARTÍCULAS
+  // ==========================================
+  class FloatText {
+    constructor(x, y, text, color = "#ffd166") {
+      this.x = x;
+      this.y = y;
+      this.text = text;
+      this.color = color;
+      this.alpha = 1;
+      this.dy = -1.2;
+    }
+    update() {
+      this.y += this.dy;
+      this.alpha -= 0.025;
+    }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, this.alpha);
+      ctx.fillStyle = this.color;
+      ctx.font = "bold 22px 'Rajdhani', sans-serif";
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
+      ctx.shadowBlur = 4;
+      ctx.fillText(this.text, this.x, this.y);
+      ctx.restore();
+    }
+  }
+
+  class Particle {
+    constructor(x, y, color = "#ff3344") {
+      this.x = x;
+      this.y = y;
+      this.vx = (Math.random() - 0.5) * 8;
+      this.vy = (Math.random() - 0.7) * 8;
+      this.radius = Math.random() * 4 + 2;
+      this.color = color;
+      this.alpha = 1;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vy += 0.25; // Gravedad
+      this.alpha -= 0.03;
+    }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, this.alpha);
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function spawnBlood(x, y) {
+    for (let i = 0; i < 12; i++) {
+      particles.push(new Particle(x, y, Math.random() > 0.3 ? "#b00020" : "#ffd166"));
+    }
+  }
+
+  // ==========================================
+  // CLASES DE ENTIDADES
+  // ==========================================
+  class Zombie {
+    constructor(typeIndex, x, y) {
+      this.type = zombieTypes[typeIndex];
+      this.x = x;
+      this.y = y;
+      this.w = this.type.w;
+      this.h = this.type.h;
+      this.speed = this.type.baseSpeed + Math.random() * 2;
+      this.mode = "run";
+      this.frame = 0;
+      this.tick = 0;
+      this.deadDone = false;
+    }
+
+    update() {
+      if (this.mode === "run") {
+        this.x -= this.speed;
+      }
+      this.tick++;
+      if (this.tick % 5 === 0) {
+        this.frame++;
+        const maxFrames = this.mode === "run" ? this.type.runFrames : this.type.deadFrames;
+        if (this.frame >= maxFrames) {
+          if (this.mode === "dead") {
+            this.frame = maxFrames - 1;
+            this.deadDone = true;
+          } else {
+            this.frame = 0;
+          }
+        }
+      }
+    }
+
+    draw() {
+      const img = this.mode === "run" ? this.type.runImg : this.type.deadImg;
+      if (!img.complete) return;
+      const fw = this.type.frameWidth;
+      const fh = this.type.frameHeight;
+      ctx.drawImage(
+        img,
+        this.frame * fw, 0, fw, fh,
+        this.x, this.y, this.w, this.h
+      );
+    }
+
+    kill() {
+      this.mode = "dead";
+      this.frame = 0;
+      this.tick = 0;
+    }
+
+    getHitbox() {
+      return {
+        x: this.x + 10,
+        y: this.y + 10,
+        w: this.w - 20,
+        h: this.h - 15
+      };
+    }
+  }
+
+  class PowerUpItem {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.w = 44;
+      this.h = 44;
+      this.active = true;
+      this.frame = 0;
+      this.tick = 0;
+    }
+
+    update() {
+      this.tick++;
+      if (this.tick % 6 === 0) {
+        this.frame = (this.frame + 1) % powerupFrames;
+      }
+      this.x -= 2; // Desplaza suavemente hacia la izquierda
+    }
+
+    draw() {
+      if (!powerupImg.complete || !this.active) return;
+      const fw = powerupImg.width / powerupFrames;
+      const fh = powerupImg.height;
+      ctx.drawImage(
+        powerupImg,
+        this.frame * fw, 0, fw, fh,
+        this.x, this.y, this.w, this.h
+      );
+    }
+
+    getHitbox() {
+      return { x: this.x + 5, y: this.y + 5, w: this.w - 10, h: this.h - 10 };
+    }
+  }
+
+  // ==========================================
+  // HITBOX DEL CARRO & DETECCIÓN
+  // ==========================================
+  function getCarHitbox() {
+    return {
+      x: car.x + 15,
+      y: car.y + 20,
+      w: car.w - 25,
+      h: car.h - 25
+    };
+  }
+
+  function rectOverlap(r1, r2) {
+    return (
+      r1.x < r2.x + r2.w &&
+      r1.x + r1.w > r2.x &&
+      r1.y < r2.y + r2.h &&
+      r1.y + r1.h > r2.y
+    );
+  }
+
+  // ==========================================
+  // PARALLAX BACKGROUND
+  // ==========================================
+  function drawParallax(deltaMultiplier = 1) {
+    let allLoaded = bgLayers.every(l => l.img.complete && l.img.naturalWidth > 0);
+    if (!allLoaded) {
+      // Fallback si los layers de War1 no cargan
+      if (fallbackBg.complete) {
+        ctx.drawImage(fallbackBg, 0, 0, W, H);
+      }
+      return;
+    }
+
+    bgLayers.forEach(layer => {
+      layer.x -= layer.speed * deltaMultiplier;
+      if (layer.x <= -W) layer.x = 0;
+
+      ctx.drawImage(layer.img, layer.x, 0, W, H);
+      ctx.drawImage(layer.img, layer.x + W, 0, W, H);
+    });
+  }
+
+  // ==========================================
+  // RENDER DEL CARRO
+  // ==========================================
+  function updateCar() {
+    car.tick++;
+    if (car.tick % 5 === 0) {
+      car.frame++;
+      const maxF = carFrames[car.mode];
+      if (car.frame >= maxF) {
+        if (car.mode === "damage") {
+          car.mode = "ride";
+          car.frame = 0;
+        } else if (car.mode === "destroyed") {
+          car.frame = maxF - 1;
+        } else {
+          car.frame = 0;
+        }
+      }
+    }
+
+    if (powerActive) {
+      car.auraTick++;
+      if (car.auraTick % 4 === 0) {
+        car.auraFrame = (car.auraFrame + 1) % auraFrames;
+      }
+    }
+  }
+
+  function drawCar() {
+    const img = carImages[car.mode];
+    if (!img.complete) return;
+
+    const fw = img.width / carFrames[car.mode];
+    const fh = img.height;
+
+    // Dibujar vehículo
+    ctx.drawImage(
+      img,
+      car.frame * fw, 0, fw, fh,
+      car.x, car.y, car.w, car.h
+    );
+
+    // Dibujar aura si hay PowerUp
+    if (powerActive && auraImg.complete) {
+      const afw = auraImg.width / auraFrames;
+      const afh = auraImg.height;
+      ctx.drawImage(
+        auraImg,
+        car.auraFrame * afw, 0, afw, afh,
+        car.x - 20, car.y - 25, car.w + 40, car.h + 50
+      );
+    }
+  }
+
+  // ==========================================
+  // CONTROLES DE TECLADO (FLECHAS + WASD)
+  // ==========================================
+  const keys = {};
+  window.addEventListener("keydown", e => {
+    keys[e.code] = true;
+
+    if (e.code === "KeyP" || e.code === "Escape") {
+      togglePause();
+    }
+    if (e.code === "KeyM") {
+      toggleAudio();
+    }
+  });
+
+  window.addEventListener("keyup", e => {
+    keys[e.code] = false;
+  });
+
+  function handleInput() {
+    let moving = false;
+    const speed = powerActive ? car.speed * 1.3 : car.speed;
+
+    if (keys["ArrowUp"] || keys["KeyW"]) {
+      car.y -= speed;
+      moving = true;
+    }
+    if (keys["ArrowDown"] || keys["KeyS"]) {
+      car.y += speed;
+      moving = true;
+    }
+    if (keys["ArrowLeft"] || keys["KeyA"]) {
+      car.x -= speed;
+      moving = true;
+    }
+    if (keys["ArrowRight"] || keys["KeyD"]) {
+      car.x += speed;
+      moving = true;
+    }
+
+    // Límites de la carretera (zona transitable)
+    const minY = H * 0.45;
+    const maxY = H - car.h - 10;
+    car.y = Math.max(minY, Math.min(maxY, car.y));
+    car.x = Math.max(10, Math.min(W - car.w - 10, car.x));
+
+    if (moving) {
+      audio.startDrive();
+    } else {
+      audio.stopDrive();
+    }
+  }
+
+  // ==========================================
+  // GENERACIÓN DE ENTIDADES
+  // ==========================================
+  function spawnZombieGroup(now) {
+    // Incremento de dificultad progresivo según puntaje
+    const difficultyMultiplier = Math.min(2.5, 1 + score / 500);
+    const count = Math.random() < 0.6 ? 2 : 3;
+
+    for (let i = 0; i < count; i++) {
+      const typeIdx = Math.floor(Math.random() * zombieTypes.length);
+      const minY = H * 0.45;
+      const maxY = H - 85;
+      const y = Math.random() * (maxY - minY) + minY;
+      const x = W + i * 70 + Math.random() * 40;
+      const z = new Zombie(typeIdx, x, y);
+      z.speed *= difficultyMultiplier;
+      zombies.push(z);
+    }
+    lastZombieSpawn = now;
+  }
+
+  function spawnPowerUp(now) {
+    const minY = H * 0.48;
+    const maxY = H - 60;
+    const y = Math.random() * (maxY - minY) + minY;
+    const x = W + Math.random() * 100;
+    powerUps.push(new PowerUpItem(x, y));
+    lastPowerSpawn = now;
+  }
+
+  // ==========================================
+  // HIGH SCORES (LOCALSTORAGE)
+  // ==========================================
+  function getHighScores() {
+    try {
+      const data = localStorage.getItem("killerRunner_highScores");
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveHighScore(name, pts) {
+    let list = getHighScores();
+    list.push({ name: name.trim() || "Jugador", score: pts, date: new Date().toLocaleDateString() });
+    list.sort((a, b) => b.score - a.score);
+    list = list.slice(0, 10);
+    localStorage.setItem("killerRunner_highScores", JSON.stringify(list));
+    return list;
+  }
+
+  function renderHighScores(list, element) {
+    element.innerHTML = "";
+    if (list.length === 0) {
+      element.innerHTML = `<li style="justify-content:center;color:#64748b;">No hay récords todavía</li>`;
+      return;
+    }
+    list.forEach((entry, idx) => {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <span><strong>${idx + 1}.</strong> ${entry.name}</span>
+        <span style="color:var(--accent);font-weight:700;">${entry.score} pts</span>
+      `;
+      element.appendChild(li);
+    });
+  }
+
+  function updateHUD() {
+    scoreVal.textContent = score;
+
+    // Dibujar vidas con íconos de spoiler
+    livesContainer.innerHTML = "";
+    for (let i = 0; i < lives; i++) {
+      const img = document.createElement("img");
+      img.src = "assets/ui/spoiler.png";
+      livesContainer.appendChild(img);
+    }
+
+    // PowerUp Indicator
+    if (powerActive) {
+      powerIndicator.style.display = "flex";
+    } else {
+      powerIndicator.style.display = "none";
+    }
+  }
+
+  // ==========================================
+  // CICLO PRINCIPAL (UPDATE & DRAW)
+  // ==========================================
+  function update(now) {
+    if (currentState !== STATE.PLAYING) return;
+
+    handleInput();
+    updateCar();
+
+    // Comprobar PowerUp activo
+    if (powerActive && now >= powerEndTime) {
+      powerActive = false;
+      zombieSpawnInterval = 1800;
+    }
+
+    // Spawn dinámico
+    if (now - lastZombieSpawn > zombieSpawnInterval) {
+      spawnZombieGroup(now);
+    }
+    if (now - lastPowerSpawn > powerSpawnInterval) {
+      spawnPowerUp(now);
+    }
+
+    const carBox = getCarHitbox();
+
+    // Actualizar zombies
+    for (let i = zombies.length - 1; i >= 0; i--) {
+      const z = zombies[i];
+      z.update();
+
+      // Zombie cruza la pantalla
+      if (z.x + z.w < 0) {
+        if (z.mode === "run") {
+          lives--;
+          audio.play("lifeLost");
+          updateHUD();
+          if (lives <= 0) {
+            triggerGameOver();
+            return;
+          }
+        }
+        zombies.splice(i, 1);
+        continue;
+      }
+
+      // Colisión con el carro
+      if (z.mode === "run" && rectOverlap(carBox, z.getHitbox())) {
+        z.kill();
+        spawnBlood(z.x + z.w / 2, z.y + z.h / 2);
+        audio.play("zombieDie");
+        audio.play("carCrash");
+
+        const earned = powerActive ? z.type.points * 3 : z.type.points;
+        score += earned;
+        floatTexts.push(new FloatText(z.x, z.y, `+${earned}`, powerActive ? "#00f0ff" : "#ffd166"));
+
+        car.mode = "damage";
+        car.frame = 0;
+        car.tick = 0;
+        updateHUD();
+      }
+
+      // Eliminar muertos terminados
+      if (z.deadDone) {
+        zombies.splice(i, 1);
+      }
+    }
+
+    // Actualizar PowerUps
+    for (let i = powerUps.length - 1; i >= 0; i--) {
+      const p = powerUps[i];
+      p.update();
+
+      if (p.x + p.w < 0) {
+        powerUps.splice(i, 1);
+        continue;
+      }
+
+      if (p.active && rectOverlap(carBox, p.getHitbox())) {
+        p.active = false;
+        powerActive = true;
+        powerEndTime = now + POWER_DURATION;
+        zombieSpawnInterval = 900; // Más zombies durante frenesí
+        audio.play("powerup");
+        floatTexts.push(new FloatText(car.x + 30, car.y - 10, "¡FRENESÍ x3!", "#00f0ff"));
+        powerUps.splice(i, 1);
+        updateHUD();
+      }
+    }
+
+    // Actualizar textos y partículas
+    floatTexts.forEach(t => t.update());
+    floatTexts = floatTexts.filter(t => t.alpha > 0);
+
+    particles.forEach(p => p.update());
+    particles = particles.filter(p => p.alpha > 0);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Fondo Parallax
+    drawParallax(currentState === STATE.PLAYING ? 1 : 0.2);
+
+    if (currentState === STATE.PLAYING || currentState === STATE.PAUSED || currentState === STATE.GAMEOVER) {
+      // Dibujar elementos en el mapa
+      powerUps.forEach(p => p.draw());
+      zombies.forEach(z => z.draw());
+      drawCar();
+      particles.forEach(p => p.draw());
+      floatTexts.forEach(t => t.draw());
+    }
+  }
+
+  function gameLoop(now) {
+    update(now);
+    draw();
+    if (currentState === STATE.PLAYING) {
+      animationId = requestAnimationFrame(gameLoop);
+    }
+  }
+
+  // ==========================================
+  // TRANSICIONES DE ESTADO
+  // ==========================================
+  function startGame() {
+    audio.stopAll();
+    audio.play("start");
+
+    score = 0;
+    lives = 3;
+    powerActive = false;
+    zombies = [];
+    powerUps = [];
+    floatTexts = [];
+    particles = [];
+
+    car.x = 80;
+    car.y = H * 0.6;
+    car.mode = "ride";
+    car.frame = 0;
+
+    lastZombieSpawn = performance.now();
+    lastPowerSpawn = performance.now();
+
+    updateHUD();
+    hud.style.display = "flex";
+    menuScreen.style.display = "none";
+    pauseScreen.style.display = "none";
+    gameOverScreen.style.display = "none";
+
+    currentState = STATE.PLAYING;
+    if (animationId) cancelAnimationFrame(animationId);
+    animationId = requestAnimationFrame(gameLoop);
+  }
+
+  function togglePause() {
+    if (currentState === STATE.PLAYING) {
+      currentState = STATE.PAUSED;
+      audio.stopDrive();
+      pauseScreen.style.display = "flex";
+      draw();
+    } else if (currentState === STATE.PAUSED) {
+      currentState = STATE.PLAYING;
+      pauseScreen.style.display = "none";
+      animationId = requestAnimationFrame(gameLoop);
+    }
+  }
+
+  function triggerGameOver() {
+    currentState = STATE.GAMEOVER;
+    audio.stopAll();
+    audio.play("gameOver");
+
+    car.mode = "destroyed";
+    draw();
+
+    finalScoreVal.textContent = score;
+    saveScoreForm.style.display = "flex";
+    playerNameInput.value = "";
+    renderHighScores(getHighScores(), gameOverHighScores);
+
+    gameOverScreen.style.display = "flex";
+  }
+
+  function returnToMenu() {
+    currentState = STATE.MENU;
+    audio.stopAll();
+    audio.startMenuMusic();
+
+    hud.style.display = "none";
+    pauseScreen.style.display = "none";
+    gameOverScreen.style.display = "none";
+    menuScreen.style.display = "flex";
+
+    renderHighScores(getHighScores(), menuHighScores);
+    draw();
+  }
+
+  function toggleAudio() {
+    const unmuted = audio.toggleMute();
+    audioToggleBtn.textContent = unmuted ? "🔊 Audio: ON" : "🔇 Audio: OFF";
+    if (currentState === STATE.MENU && unmuted) {
+      audio.startMenuMusic();
+    }
+  }
+
+  // ==========================================
+  // LISTENERS DE INTERFAZ
+  // ==========================================
+  startBtn.addEventListener("click", () => {
+    startGame();
+  });
+
+  pauseBtn.addEventListener("click", togglePause);
+  resumeBtn.addEventListener("click", togglePause);
+  quitBtn.addEventListener("click", returnToMenu);
+  restartBtn.addEventListener("click", startGame);
+  menuFromGameOverBtn.addEventListener("click", returnToMenu);
+  audioToggleBtn.addEventListener("click", toggleAudio);
+
+  saveScoreBtn.addEventListener("click", () => {
+    const name = playerNameInput.value.trim() || "Jugador";
+    const updated = saveHighScore(name, score);
+    renderHighScores(updated, gameOverHighScores);
+    renderHighScores(updated, menuHighScores);
+    saveScoreForm.style.display = "none";
+  });
+
+  playerNameInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      saveScoreBtn.click();
+    }
+  });
+
+  // Inicio inicial: Mostrar Menú y Top 10
+  renderHighScores(getHighScores(), menuHighScores);
+  returnToMenu();
+})();
+</script>
+</body>
+</html>

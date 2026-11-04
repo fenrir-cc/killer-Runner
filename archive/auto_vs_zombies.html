@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Auto vs Zombies</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #333;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="400"></canvas>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+// ===== CARGA DE SPRITES =====
+const carSprite = new Image();
+carSprite.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/Ride.png"; // sprite del auto
+const carFrames = 8;
+const carWidth = 256;
+const carHeight = 128;
+
+const explosionSprite = new Image();
+explosionSprite.src = "https://raw.githubusercontent.com/fenrir-cc/movies/refs/heads/main/Destroyed.png"; // sprite de explosión
+const explosionFrames = 10;
+const explosionWidth = 256;
+const explosionHeight = 128;
+
+// ===== CLASE AUTO =====
+class Car {
+  constructor() {
+    this.x = 100;
+    this.y = canvas.height - carHeight - 20;
+    this.frame = 0;
+    this.tick = 0;
+  }
+  draw() {
+    ctx.drawImage(
+      carSprite,
+      this.frame * carWidth, 0, carWidth, carHeight,
+      this.x, this.y, carWidth, carHeight
+    );
+    this.tick++;
+    if (this.tick % 5 === 0) {
+      this.frame = (this.frame + 1) % carFrames;
+    }
+  }
+}
+const car = new Car();
+
+// ===== CLASE ZOMBIE =====
+class Zombie {
+  constructor() {
+    this.size = 40;
+    this.x = canvas.width;
+    this.y = canvas.height - this.size - 20;
+    this.speed = 3;
+  }
+  draw() {
+    ctx.fillStyle = "lime";
+    ctx.fillRect(this.x, this.y, this.size, this.size);
+  }
+  update() {
+    this.x -= this.speed;
+    this.draw();
+  }
+}
+let zombies = [];
+
+// ===== CLASE EXPLOSIÓN =====
+class Explosion {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.frame = 0;
+    this.done = false;
+    this.tick = 0;
+  }
+  draw() {
+    if (this.frame < explosionFrames) {
+      ctx.drawImage(
+        explosionSprite,
+        this.frame * explosionWidth, 0,
+        explosionWidth, explosionHeight,
+        this.x, this.y - (explosionHeight - 40), // ajusta Y
+        explosionWidth, explosionHeight
+      );
+      this.tick++;
+      if (this.tick % 5 === 0) {
+        this.frame++;
+      }
+    } else {
+      this.done = true;
+    }
+  }
+}
+let explosions = [];
+
+// ===== COLISIONES =====
+function checkCollisions() {
+  zombies.forEach((z, zi) => {
+    if (car.x < z.x + z.size &&
+        car.x + carWidth > z.x &&
+        car.y < z.y + z.size &&
+        car.y + carHeight > z.y) {
+      // colisión → explosion
+      explosions.push(new Explosion(z.x, z.y));
+      zombies.splice(zi, 1);
+    }
+  });
+}
+
+// ===== LOOP DEL JUEGO =====
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  car.draw();
+
+  zombies.forEach(z => z.update());
+
+  checkCollisions();
+
+  explosions.forEach((explosion, i) => {
+    explosion.draw();
+    if (explosion.done) explosions.splice(i, 1);
+  });
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ===== GENERAR ZOMBIES =====
+setInterval(() => {
+  zombies.push(new Zombie());
+}, 2000);
+
+// ===== INICIAR JUEGO SOLO CUANDO SPRITES CARGUEN =====
+let loaded = 0;
+function startWhenReady() {
+  loaded++;
+  if (loaded === 2) {
+    gameLoop();
+  }
+}
+carSprite.onload = startWhenReady;
+explosionSprite.onload = startWhenReady;
+
+</script>
+</body>
+</html>
