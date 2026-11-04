@@ -608,7 +608,7 @@
   const powerupImg = loadImage("assets/ui/powerup.png");
   const powerupFrames = 4;
 
-  // Tipos de Zombies con Sprite Sheets Locales
+  // Tipos de Zombies con Sprite Sheets Locales (velocidad calibrada para visibilidad)
   const zombieTypes = [
     {
       name: "Zombie Man",
@@ -618,9 +618,9 @@
       deadFrames: 5,
       frameWidth: 96,
       frameHeight: 96,
-      w: 60,
-      h: 80,
-      baseSpeed: 4.5,
+      w: 65,
+      h: 85,
+      baseSpeed: 1.8,
       points: 10
     },
     {
@@ -631,9 +631,9 @@
       deadFrames: 5,
       frameWidth: 96,
       frameHeight: 96,
-      w: 55,
-      h: 80,
-      baseSpeed: 6.0,
+      w: 60,
+      h: 85,
+      baseSpeed: 2.3,
       points: 15
     },
     {
@@ -644,9 +644,9 @@
       deadFrames: 5,
       frameWidth: 96,
       frameHeight: 96,
-      w: 65,
-      h: 80,
-      baseSpeed: 7.5,
+      w: 70,
+      h: 85,
+      baseSpeed: 3.0,
       points: 25
     }
   ];
@@ -764,7 +764,7 @@
       this.y = y;
       this.w = this.type.w;
       this.h = this.type.h;
-      this.speed = this.type.baseSpeed + Math.random() * 2;
+      this.speed = this.type.baseSpeed + Math.random() * 0.5;
       this.mode = "run";
       this.frame = 0;
       this.tick = 0;
@@ -776,7 +776,7 @@
         this.x -= this.speed;
       }
       this.tick++;
-      if (this.tick % 5 === 0) {
+      if (this.tick % 6 === 0) {
         this.frame++;
         const maxFrames = this.mode === "run" ? this.type.runFrames : this.type.deadFrames;
         if (this.frame >= maxFrames) {
@@ -795,11 +795,17 @@
       if (!img.complete) return;
       const fw = this.type.frameWidth;
       const fh = this.type.frameHeight;
+
+      // Invertir horizontalmente para que el zombie mire hacia la izquierda (hacia el carro)
+      ctx.save();
+      ctx.translate(this.x + this.w, this.y);
+      ctx.scale(-1, 1);
       ctx.drawImage(
         img,
         this.frame * fw, 0, fw, fh,
-        this.x, this.y, this.w, this.h
+        0, 0, this.w, this.h
       );
+      ctx.restore();
     }
 
     kill() {
@@ -997,8 +1003,8 @@
   // GENERACIÓN DE ENTIDADES
   // ==========================================
   function spawnZombieGroup(now) {
-    // Incremento de dificultad progresivo según puntaje
-    const difficultyMultiplier = Math.min(2.5, 1 + score / 500);
+    // Incremento de dificultad progresivo y gradual
+    const difficultyMultiplier = Math.min(1.8, 1 + score / 3000);
     const count = Math.random() < 0.6 ? 2 : 3;
 
     for (let i = 0; i < count; i++) {
