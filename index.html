@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Killer Runner — Auto vs Zombies</title>
+  <title>Killer Runner — Atropella a los Runners</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Press+Start+2P&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
@@ -150,25 +150,59 @@
     }
 
     #menuScreen {
-      background: url('assets/ui/menu-fondo.jpg') center/cover no-repeat;
+      background: radial-gradient(circle at center, #1b212b 0%, #07090c 100%);
+      padding: 18px 24px;
+      backdrop-filter: none;
+      overflow: hidden;
     }
 
     #menuScreen::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(10,12,16,0.6) 0%, rgba(10,12,16,0.92) 100%);
-      z-index: 0;
+      display: none;
     }
 
-    .menu-content {
+    .menu-layout {
       position: relative;
       z-index: 2;
       display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      width: 100%;
+      height: 100%;
+      max-width: 920px;
+    }
+
+    .menu-hero-art {
+      flex: 0 0 340px;
+      height: 480px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .game-cover-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 2px solid rgba(230, 57, 70, 0.7);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 25px rgba(230, 57, 70, 0.45);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .game-cover-img:hover {
+      transform: scale(1.02);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9), 0 0 35px rgba(230, 57, 70, 0.75);
+    }
+
+    .menu-content {
+      flex: 1;
+      display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
-      max-width: 600px;
+      gap: 12px;
+      max-width: 500px;
       width: 100%;
     }
 
@@ -403,23 +437,31 @@
 
   <!-- PANTALLA: MENÚ PRINCIPAL -->
   <div id="menuScreen" class="screen-overlay">
-    <div class="menu-content">
-      <h1 class="game-title">KILLER RUNNER</h1>
-      <div class="subtitle">Auto vs Zombies Apocalypse</div>
-      
-      <button id="startBtn" class="btn-primary">
-        <span>INICIAR JUEGO</span> ▶
-      </button>
-
-      <div class="instructions-card">
-        <div><span>Flechas / WASD:</span> Conducir</div>
-        <div><span>Atropellar:</span> Zombies</div>
-        <div><span>Evitar:</span> Dejarlos escapar</div>
+    <div class="menu-layout">
+      <!-- FOTO PRINCIPAL DEL JUEGO AL FRENTE -->
+      <div class="menu-hero-art">
+        <img src="assets/ui/menu-fondo.jpg" alt="Killer Runner" class="game-cover-img" />
       </div>
 
-      <div class="scores-card">
-        <h3>🏆 Mejores Puntuaciones</h3>
-        <ul id="menuHighScores" class="scores-list"></ul>
+      <!-- PANEL PRINCIPAL Y ACCIONES -->
+      <div class="menu-content">
+        <h1 class="game-title">KILLER RUNNER</h1>
+        <div class="subtitle" style="color:var(--accent);font-weight:700;">¡El objetivo es atropellar runners!</div>
+        
+        <button id="startBtn" class="btn-primary">
+          <span>INICIAR JUEGO</span> ▶
+        </button>
+
+        <div class="instructions-card">
+          <div><span>Flechas / WASD:</span> Conducir</div>
+          <div><span>Objetivo:</span> Atropellar Runners</div>
+          <div><span>Evitar:</span> Dejarlos escapar</div>
+        </div>
+
+        <div class="scores-card">
+          <h3>🏆 Mejores Puntuaciones</h3>
+          <ul id="menuHighScores" class="scores-list"></ul>
+        </div>
       </div>
     </div>
   </div>
