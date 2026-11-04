@@ -19,6 +19,18 @@
     * {
       box-sizing: border-box;
       user-select: none;
+      -webkit-user-select: none;
+    }
+
+    input, textarea, select {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      touch-action: auto !important;
+      font-size: 16px !important;
+    }
+
+    button {
+      touch-action: manipulation;
     }
 
     html, body {
@@ -407,6 +419,107 @@
       align-items: center;
       gap: 6px;
     }
+    /* Controles Táctiles en Pantalla */
+    .touch-controls {
+      position: absolute;
+      bottom: 14px;
+      left: 0;
+      width: 100%;
+      padding: 0 16px;
+      display: none;
+      justify-content: space-between;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    .touch-group {
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    .touch-btn {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: rgba(18, 22, 28, 0.75);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+      transition: transform 0.08s ease, background 0.08s ease;
+    }
+
+    .touch-btn:active, .touch-btn.active {
+      transform: scale(0.92);
+      background: rgba(230, 57, 70, 0.85);
+      border-color: #ff4d5a;
+      box-shadow: 0 0 16px rgba(230, 57, 70, 0.9);
+    }
+
+    /* Mostrar controles en dispositivos móviles / táctiles */
+    @media (pointer: coarse), (max-width: 900px) {
+      .touch-controls {
+        display: flex;
+      }
+      .audio-toggle {
+        bottom: auto;
+        top: 10px;
+        right: 120px;
+        padding: 4px 8px;
+        font-size: 0.85rem;
+      }
+    }
+
+    /* Ajustes responsivos para pantallas pequeñas */
+    @media (max-width: 768px), (max-height: 520px) {
+      .game-title {
+        font-size: 2.2rem !important;
+      }
+      .subtitle {
+        font-size: 0.9rem !important;
+      }
+      .btn-primary {
+        padding: 10px 24px !important;
+        font-size: 1.1rem !important;
+      }
+      .menu-layout {
+        gap: 12px;
+      }
+      .menu-hero-art {
+        flex: 0 0 140px;
+        height: 200px;
+      }
+      .instructions-card {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .scores-card {
+        max-height: 120px;
+        padding: 8px 12px;
+      }
+      .hud-badge {
+        padding: 4px 8px;
+        font-size: 0.85rem;
+      }
+      .game-over-box {
+        padding: 14px 18px;
+        max-height: 95vh;
+        overflow-y: auto;
+      }
+      .final-score-val {
+        font-size: 2.2rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -434,6 +547,18 @@
 
   <!-- CANVAS DEL JUEGO -->
   <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+  <!-- CONTROLES TÁCTILES PARA MÓVILES -->
+  <div id="touchControls" class="touch-controls">
+    <div class="touch-group touch-left">
+      <button type="button" class="touch-btn" id="touchLeft" data-key="ArrowLeft" aria-label="Atrás">◀</button>
+      <button type="button" class="touch-btn" id="touchRight" data-key="ArrowRight" aria-label="Adelante">▶</button>
+    </div>
+    <div class="touch-group touch-right">
+      <button type="button" class="touch-btn" id="touchUp" data-key="ArrowUp" aria-label="Subir">▲</button>
+      <button type="button" class="touch-btn" id="touchDown" data-key="ArrowDown" aria-label="Bajar">▼</button>
+    </div>
+  </div>
 
   <!-- PANTALLA: MENÚ PRINCIPAL -->
   <div id="menuScreen" class="screen-overlay">
@@ -482,12 +607,12 @@
       <p class="final-score-title">Puntuación Final</p>
       <p class="final-score-val" id="finalScoreVal">0</p>
 
-      <div id="saveScoreForm" style="width:100%;display:flex;flex-direction:column;gap:10px;">
+      <form id="saveScoreForm" onsubmit="return false;" style="width:100%;display:flex;flex-direction:column;gap:10px;">
         <div class="name-input-group">
-          <input type="text" id="playerNameInput" placeholder="Ingresa tu nombre..." maxlength="15" />
-          <button id="saveScoreBtn" class="btn-secondary" style="background:var(--accent);color:#111;font-weight:700;">Guardar</button>
+          <input type="text" id="playerNameInput" placeholder="Ingresa tu nombre..." maxlength="15" autocomplete="off" autocorrect="off" autocapitalize="words" enterkeyhint="done" />
+          <button type="submit" id="saveScoreBtn" class="btn-secondary" style="background:var(--accent);color:#111;font-weight:700;">Guardar</button>
         </div>
-      </div>
+      </form>
 
       <div class="scores-card" style="max-height:160px;">
         <h3>🌍 TOP 10 MUNDIAL</h3>
@@ -1007,6 +1132,63 @@
     keys[e.code] = false;
   });
 
+  // ==========================================
+  // CONTROLES TÁCTILES Y MÓVILES
+  // ==========================================
+  const touchControls = document.getElementById("touchControls");
+  const touchButtons = document.querySelectorAll(".touch-btn");
+
+  touchButtons.forEach(btn => {
+    const key = btn.getAttribute("data-key");
+    const press = (e) => {
+      e.preventDefault();
+      keys[key] = true;
+      btn.classList.add("active");
+    };
+    const release = (e) => {
+      e.preventDefault();
+      keys[key] = false;
+      btn.classList.remove("active");
+    };
+    btn.addEventListener("touchstart", press, { passive: false });
+    btn.addEventListener("touchend", release, { passive: false });
+    btn.addEventListener("touchcancel", release, { passive: false });
+    btn.addEventListener("mousedown", press);
+    btn.addEventListener("mouseup", release);
+    btn.addEventListener("mouseleave", release);
+  });
+
+  // Arrastre táctil directo en el Canvas
+  let canvasTouchActive = false;
+  let targetTouchX = car.x;
+  let targetTouchY = car.y;
+
+  function updateTouchTarget(t) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    targetTouchX = (t.clientX - rect.left) * scaleX - car.w / 2;
+    targetTouchY = (t.clientY - rect.top) * scaleY - car.h / 2;
+  }
+
+  canvas.addEventListener("touchstart", e => {
+    if (currentState !== STATE.PLAYING) return;
+    canvasTouchActive = true;
+    updateTouchTarget(e.touches[0]);
+  }, { passive: true });
+
+  canvas.addEventListener("touchmove", e => {
+    if (currentState !== STATE.PLAYING || !canvasTouchActive) return;
+    updateTouchTarget(e.touches[0]);
+  }, { passive: true });
+
+  canvas.addEventListener("touchend", () => {
+    canvasTouchActive = false;
+  });
+  canvas.addEventListener("touchcancel", () => {
+    canvasTouchActive = false;
+  });
+
   function handleInput() {
     let moving = false;
     const speed = powerActive ? car.speed * 1.3 : car.speed;
@@ -1026,6 +1208,19 @@
     if (keys["ArrowRight"] || keys["KeyD"]) {
       car.x += speed;
       moving = true;
+    }
+
+    if (canvasTouchActive) {
+      const dx = targetTouchX - car.x;
+      const dy = targetTouchY - car.y;
+      if (Math.abs(dx) > 8) {
+        car.x += Math.sign(dx) * Math.min(Math.abs(dx), speed);
+        moving = true;
+      }
+      if (Math.abs(dy) > 8) {
+        car.y += Math.sign(dy) * Math.min(Math.abs(dy), speed);
+        moving = true;
+      }
     }
 
     // Límites de la carretera (zona transitable)
@@ -1328,6 +1523,7 @@
 
     updateHUD();
     hud.style.display = "flex";
+    touchControls.style.display = "";
     menuScreen.style.display = "none";
     pauseScreen.style.display = "none";
     gameOverScreen.style.display = "none";
@@ -1341,10 +1537,12 @@
     if (currentState === STATE.PLAYING) {
       currentState = STATE.PAUSED;
       audio.stopDrive();
+      touchControls.style.display = "none";
       pauseScreen.style.display = "flex";
       draw();
     } else if (currentState === STATE.PAUSED) {
       currentState = STATE.PLAYING;
+      touchControls.style.display = "";
       pauseScreen.style.display = "none";
       animationId = requestAnimationFrame(gameLoop);
     }
@@ -1354,6 +1552,7 @@
     currentState = STATE.GAMEOVER;
     audio.stopAll();
     audio.startMenuMusic(); // Reproduce ay-ay-ay-que-alegría en pantalla de resultados
+    touchControls.style.display = "none";
 
     car.mode = "destroyed";
     draw();
@@ -1376,6 +1575,7 @@
     audio.stopAll();
     audio.startMenuMusic();
 
+    touchControls.style.display = "none";
     hud.style.display = "none";
     pauseScreen.style.display = "none";
     gameOverScreen.style.display = "none";
@@ -1410,20 +1610,38 @@
   menuFromGameOverBtn.addEventListener("click", returnToMenu);
   audioToggleBtn.addEventListener("click", toggleAudio);
 
-  saveScoreBtn.addEventListener("click", async () => {
+  const handleScoreSubmit = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (saveScoreBtn.disabled) return;
+
     const name = playerNameInput.value.trim() || "Jugador";
     saveScoreBtn.disabled = true;
     saveScoreBtn.textContent = "Guardando...";
 
-    const updated = await saveGlobalScore(name, score);
-    renderHighScores(updated, gameOverHighScores);
-    renderHighScores(updated, menuHighScores);
-    saveScoreForm.style.display = "none";
-  });
+    try {
+      const updated = await saveGlobalScore(name, score);
+      renderHighScores(updated, gameOverHighScores);
+      renderHighScores(updated, menuHighScores);
+      saveScoreBtn.textContent = "¡Récord guardado!";
+      setTimeout(() => {
+        saveScoreForm.style.display = "none";
+      }, 600);
+    } catch (err) {
+      saveScoreBtn.disabled = false;
+      saveScoreBtn.textContent = "Guardar";
+      console.error(err);
+    }
+  };
+
+  saveScoreForm.addEventListener("submit", handleScoreSubmit);
+  saveScoreBtn.addEventListener("click", handleScoreSubmit);
 
   playerNameInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
-      saveScoreBtn.click();
+      handleScoreSubmit(e);
     }
   });
 
