@@ -459,7 +459,7 @@
         </div>
 
         <div class="scores-card">
-          <h3>🏆 Mejores Puntuaciones</h3>
+          <h3>🌍 TOP 10 MUNDIAL</h3>
           <ul id="menuHighScores" class="scores-list"></ul>
         </div>
       </div>
@@ -490,7 +490,7 @@
       </div>
 
       <div class="scores-card" style="max-height:160px;">
-        <h3>Top 10 Récords</h3>
+        <h3>🌍 TOP 10 MUNDIAL</h3>
         <ul id="gameOverHighScores" class="scores-list"></ul>
       </div>
 
@@ -1072,9 +1072,11 @@
   }
 
   // ==========================================
-  // HIGH SCORES (LOCALSTORAGE)
+  // GESTOR DE PUNTAJES GLOBALES (FIREBASE RTDB)
   // ==========================================
-  function getHighScores() {
+  const FIREBASE_DB_URL = "https://killer-runner-default-rtdb.firebaseio.com";
+
+  function getLocalScores() {
     try {
       const data = localStorage.getItem("killerRunner_highScores");
       return data ? JSON.parse(data) : [];
@@ -1083,29 +1085,81 @@
     }
   }
 
-  function saveHighScore(name, pts) {
-    let list = getHighScores();
+  function saveLocalScore(name, pts) {
+    let list = getLocalScores();
     list.push({ name: name.trim() || "Jugador", score: pts, date: new Date().toLocaleDateString() });
     list.sort((a, b) => b.score - a.score);
     list = list.slice(0, 10);
-    localStorage.setItem("killerRunner_highScores", JSON.stringify(list));
+    try {
+      localStorage.setItem("killerRunner_highScores", JSON.stringify(list));
+    } catch (e) {}
     return list;
+  }
+
+  async function fetchGlobalScores() {
+    try {
+      const res = await fetch(`${FIREBASE_DB_URL}/scores.json`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Firebase fetch failed");
+      const data = await res.json();
+      if (!data) return getLocalScores();
+
+      const list = Object.values(data);
+      list.sort((a, b) => (b.score || 0) - (a.score || 0));
+      const top10 = list.slice(0, 10);
+      try {
+        localStorage.setItem("killerRunner_highScores", JSON.stringify(top10));
+      } catch (e) {}
+      return top10;
+    } catch (err) {
+      console.warn("Usando récords locales:", err);
+      return getLocalScores();
+    }
+  }
+
+  async function saveGlobalScore(name, pts) {
+    const entry = {
+      name: name.trim() || "Jugador",
+      score: pts,
+      date: new Date().toLocaleDateString(),
+      timestamp: Date.now()
+    };
+
+    saveLocalScore(entry.name, entry.score);
+
+    try {
+      await fetch(`${FIREBASE_DB_URL}/scores.json`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entry)
+      });
+      return await fetchGlobalScores();
+    } catch (err) {
+      console.warn("No se pudo enviar a Firebase, guardado localmente:", err);
+      return getLocalScores();
+    }
   }
 
   function renderHighScores(list, element) {
     element.innerHTML = "";
-    if (list.length === 0) {
-      element.innerHTML = `<li style="justify-content:center;color:#64748b;">No hay récords todavía</li>`;
+    if (!list || list.length === 0) {
+      element.innerHTML = `<li style="justify-content:center;color:#64748b;">No hay récords todavía. ¡Sé el primero!</li>`;
       return;
     }
     list.forEach((entry, idx) => {
       const li = document.createElement("li");
+      const safeName = escapeHtml(entry.name || "Jugador");
       li.innerHTML = `
-        <span><strong>${idx + 1}.</strong> ${entry.name}</span>
-        <span style="color:var(--accent);font-weight:700;">${entry.score} pts</span>
+        <span><strong>${idx + 1}.</strong> ${safeName}</span>
+        <span style="color:var(--accent);font-weight:700;">${entry.score || 0} pts</span>
       `;
       element.appendChild(li);
     });
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   function updateHUD() {
@@ -1296,7 +1350,7 @@
     }
   }
 
-  function triggerGameOver() {
+  async function triggerGameOver() {
     currentState = STATE.GAMEOVER;
     audio.stopAll();
     audio.startMenuMusic(); // Reproduce ay-ay-ay-que-alegría en pantalla de resultados
@@ -1307,12 +1361,17 @@
     finalScoreVal.textContent = score;
     saveScoreForm.style.display = "flex";
     playerNameInput.value = "";
-    renderHighScores(getHighScores(), gameOverHighScores);
+    saveScoreBtn.disabled = false;
+    saveScoreBtn.textContent = "Guardar";
 
+    renderHighScores(getLocalScores(), gameOverHighScores);
     gameOverScreen.style.display = "flex";
+
+    const globalScores = await fetchGlobalScores();
+    renderHighScores(globalScores, gameOverHighScores);
   }
 
-  function returnToMenu() {
+  async function returnToMenu() {
     currentState = STATE.MENU;
     audio.stopAll();
     audio.startMenuMusic();
@@ -1322,8 +1381,11 @@
     gameOverScreen.style.display = "none";
     menuScreen.style.display = "flex";
 
-    renderHighScores(getHighScores(), menuHighScores);
+    renderHighScores(getLocalScores(), menuHighScores);
     draw();
+
+    const globalScores = await fetchGlobalScores();
+    renderHighScores(globalScores, menuHighScores);
   }
 
   function toggleAudio() {
@@ -1348,9 +1410,12 @@
   menuFromGameOverBtn.addEventListener("click", returnToMenu);
   audioToggleBtn.addEventListener("click", toggleAudio);
 
-  saveScoreBtn.addEventListener("click", () => {
+  saveScoreBtn.addEventListener("click", async () => {
     const name = playerNameInput.value.trim() || "Jugador";
-    const updated = saveHighScore(name, score);
+    saveScoreBtn.disabled = true;
+    saveScoreBtn.textContent = "Guardando...";
+
+    const updated = await saveGlobalScore(name, score);
     renderHighScores(updated, gameOverHighScores);
     renderHighScores(updated, menuHighScores);
     saveScoreForm.style.display = "none";
@@ -1363,7 +1428,6 @@
   });
 
   // Inicio inicial: Mostrar Menú y Top 10
-  renderHighScores(getHighScores(), menuHighScores);
   returnToMenu();
 
   // Iniciar música en primera interacción (política de navegadores)
