@@ -509,14 +509,14 @@
         gameOver: new Audio("assets/audio/game_over.ogg"),
         carCrash: new Audio("assets/audio/car_crash.mp3"),
         drive: new Audio("assets/audio/car_drive.mp3"),
-        menuMusic: new Audio("assets/audio/menu_music.mp3")
+        menuMusic: new Audio("assets/audio/alegria.mp3")
       };
 
       // Volúmenes calibrados
       this.sounds.drive.loop = true;
       this.sounds.drive.volume = 0.35;
       this.sounds.menuMusic.loop = true;
-      this.sounds.menuMusic.volume = 0.25;
+      this.sounds.menuMusic.volume = 0.35;
       this.sounds.zombieDie.volume = 0.35;
       this.sounds.carCrash.volume = 0.4;
       this.sounds.powerup.volume = 0.5;
@@ -1257,7 +1257,7 @@
   function triggerGameOver() {
     currentState = STATE.GAMEOVER;
     audio.stopAll();
-    audio.play("gameOver");
+    audio.startMenuMusic(); // Reproduce ay-ay-ay-que-alegría en pantalla de resultados
 
     car.mode = "destroyed";
     draw();
@@ -1323,6 +1323,17 @@
   // Inicio inicial: Mostrar Menú y Top 10
   renderHighScores(getHighScores(), menuHighScores);
   returnToMenu();
+
+  // Iniciar música en primera interacción (política de navegadores)
+  const unlockAudio = () => {
+    if (currentState === STATE.MENU && audio.sounds.menuMusic.paused && !audio.muted) {
+      audio.startMenuMusic();
+    }
+    window.removeEventListener("click", unlockAudio);
+    window.removeEventListener("keydown", unlockAudio);
+  };
+  window.addEventListener("click", unlockAudio);
+  window.addEventListener("keydown", unlockAudio);
 })();
 </script>
 </body>
