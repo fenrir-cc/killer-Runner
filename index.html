@@ -587,14 +587,10 @@
     return img;
   }
 
-  // Parallax layers
-  const bgLayers = [
-    { img: loadImage("background/PNG/War1/Bright/sky.png"), speed: 0.3, x: 0 },
-    { img: loadImage("background/PNG/War1/Bright/ruins.png"), speed: 0.8, x: 0 },
-    { img: loadImage("background/PNG/War1/Bright/houses1.png"), speed: 1.6, x: 0 },
-    { img: loadImage("background/PNG/War1/Bright/road.png"), speed: 4.0, x: 0 }
-  ];
-  const fallbackBg = loadImage("fondo.png");
+  // Fondo del juego con fondo.png
+  const bgImg = loadImage("fondo.png");
+  let bgX = 0;
+  const bgSpeed = 3.5;
 
   // Carro
   const carImages = {
@@ -879,25 +875,15 @@
   }
 
   // ==========================================
-  // PARALLAX BACKGROUND
+  // BACKGROUND SCROLLING (fondo.png)
   // ==========================================
-  function drawParallax(deltaMultiplier = 1) {
-    let allLoaded = bgLayers.every(l => l.img.complete && l.img.naturalWidth > 0);
-    if (!allLoaded) {
-      // Fallback si los layers de War1 no cargan
-      if (fallbackBg.complete) {
-        ctx.drawImage(fallbackBg, 0, 0, W, H);
-      }
-      return;
-    }
+  function drawBackground(deltaMultiplier = 1) {
+    if (!bgImg.complete) return;
+    bgX -= bgSpeed * deltaMultiplier;
+    if (bgX <= -W) bgX = 0;
 
-    bgLayers.forEach(layer => {
-      layer.x -= layer.speed * deltaMultiplier;
-      if (layer.x <= -W) layer.x = 0;
-
-      ctx.drawImage(layer.img, layer.x, 0, W, H);
-      ctx.drawImage(layer.img, layer.x + W, 0, W, H);
-    });
+    ctx.drawImage(bgImg, bgX, 0, W, H);
+    ctx.drawImage(bgImg, bgX + W, 0, W, H);
   }
 
   // ==========================================
@@ -1194,8 +1180,8 @@
   function draw() {
     ctx.clearRect(0, 0, W, H);
 
-    // Fondo Parallax
-    drawParallax(currentState === STATE.PLAYING ? 1 : 0.2);
+    // Fondo continuo (fondo.png)
+    drawBackground(currentState === STATE.PLAYING ? 1 : 0.2);
 
     if (currentState === STATE.PLAYING || currentState === STATE.PAUSED || currentState === STATE.GAMEOVER) {
       // Dibujar elementos en el mapa
