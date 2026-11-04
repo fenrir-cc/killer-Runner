@@ -1,9 +1,11 @@
 # PSD source files
 *.psd
-background/PSD/
 
 # Zip backups
 *.zip
+
+# Local archive with raw packs
+archive/
 
 # OS files
 Thumbs.db

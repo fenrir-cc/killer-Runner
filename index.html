@@ -440,7 +440,7 @@
     <div class="menu-layout">
       <!-- FOTO PRINCIPAL DEL JUEGO AL FRENTE -->
       <div class="menu-hero-art">
-        <img src="assets/ui/menu-fondo.jpg" alt="Killer Runner" class="game-cover-img" />
+        <img src="assets/images/menu-fondo.jpg" alt="Killer Runner" class="game-cover-img" />
       </div>
 
       <!-- PANEL PRINCIPAL Y ACCIONES -->
@@ -629,33 +629,33 @@
     return img;
   }
 
-  // Fondo del juego con fondo.png
-  const bgImg = loadImage("fondo.png");
+  // Fondo del juego
+  const bgImg = loadImage("assets/images/fondo.png");
   let bgX = 0;
   const bgSpeed = 3.5;
 
   // Carro
   const carImages = {
-    ride: loadImage("assets/ui/carro-spoiler.png"),
-    damage: loadImage("assets/ui/carro-spoiler-choque.png"),
-    destroyed: loadImage("Jeep_2/Destroyed.png")
+    ride: loadImage("assets/sprites/car/carro-spoiler.png"),
+    damage: loadImage("assets/sprites/car/carro-spoiler-choque.png"),
+    destroyed: loadImage("assets/sprites/car/destroyed.png")
   };
   const carFrames = { ride: 8, damage: 5, destroyed: 10 };
 
   // Aura PowerUp
-  const auraImg = loadImage("assets/ui/aura2.png");
+  const auraImg = loadImage("assets/sprites/powerups/aura.png");
   const auraFrames = 17;
 
   // PowerUp Item
-  const powerupImg = loadImage("assets/ui/powerup.png");
+  const powerupImg = loadImage("assets/sprites/powerups/powerup.png");
   const powerupFrames = 4;
 
-  // Tipos de Zombies con Sprite Sheets Locales (velocidad calibrada para visibilidad)
+  // Tipos de Runners con Sprite Sheets Locales
   const zombieTypes = [
     {
-      name: "Zombie Man",
-      runImg: loadImage("Zombie Man/Run.png"),
-      deadImg: loadImage("Zombie Man/Dead.png"),
+      name: "Runner Man",
+      runImg: loadImage("assets/sprites/runners/man_run.png"),
+      deadImg: loadImage("assets/sprites/runners/man_dead.png"),
       runFrames: 7,
       deadFrames: 5,
       frameWidth: 96,
@@ -666,9 +666,9 @@
       points: 10
     },
     {
-      name: "Zombie Woman",
-      runImg: loadImage("Zombie Woman/Run.png"),
-      deadImg: loadImage("Zombie Woman/Dead.png"),
+      name: "Runner Woman",
+      runImg: loadImage("assets/sprites/runners/woman_run.png"),
+      deadImg: loadImage("assets/sprites/runners/woman_dead.png"),
       runFrames: 7,
       deadFrames: 5,
       frameWidth: 96,
@@ -679,9 +679,9 @@
       points: 15
     },
     {
-      name: "Wild Zombie",
-      runImg: loadImage("Wild Zombie/Run.png"),
-      deadImg: loadImage("Wild Zombie/Dead.png"),
+      name: "Wild Runner",
+      runImg: loadImage("assets/sprites/runners/wild_run.png"),
+      deadImg: loadImage("assets/sprites/runners/wild_dead.png"),
       runFrames: 8,
       deadFrames: 5,
       frameWidth: 96,
@@ -1115,7 +1115,7 @@
     livesContainer.innerHTML = "";
     for (let i = 0; i < lives; i++) {
       const img = document.createElement("img");
-      img.src = "assets/ui/spoiler.png";
+      img.src = "assets/sprites/powerups/spoiler.png";
       livesContainer.appendChild(img);
     }
 
